@@ -1,0 +1,6 @@
+﻿# Ignoriere die Build- und Temp-Dateien
+obj/
+bin/
+
+# Ignoriere Visual Studio spezifische Dateien
+.vs/
