@@ -56,6 +56,7 @@ int someInt = config.Get<int>("someIntKey");
 float someFloat = config.Get<float>("someFloatKey");
 bool someBool = config.Get<bool>("someBoolKey");
 string someString = config.Get<string>("someStringKey");
+string[] someList = config.Ger<string[]>("someListKey");
 ```
 
 ### Setting Values
