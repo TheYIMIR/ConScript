@@ -1,56 +1,87 @@
-﻿using System.Text.RegularExpressions;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ConScript
 {
     public class ConScript
     {
         private Dictionary<string, object> configValues = new();
+        private Dictionary<string, string> comments = new();
+        private string encryptionKey = null;
+
         private static readonly Regex entryPattern = new(@"(\w+)\s+(\w+)\s*=\s*(.*?);", RegexOptions.Compiled);
         private static readonly Regex blockPattern = new(@"(\w+)\s*{", RegexOptions.Compiled);
         private static readonly Regex typedBlockPattern = new(@"(\w+)\s+(\w+)\s*{", RegexOptions.Compiled);
         private static readonly Regex arrayPattern = new(@"(\w+)\s*\[\]\s*=\s*\[(.*?)\];", RegexOptions.Compiled);
+        private static readonly Regex commentPattern = new(@"//(.*)", RegexOptions.Compiled);
 
-        public void Load(string filePath)
+        public void Load(string filePath, string password = null)
         {
             if (!File.Exists(filePath)) return;
             configValues.Clear();
-            string[] lines = File.ReadAllLines(filePath);
+            comments.Clear();
+            encryptionKey = password;
+
+            string content = File.ReadAllText(filePath);
+            if (password != null)
+            {
+                content = Decrypt(content, password);
+            }
+
+            string[] lines = content.Split('\n');
             Stack<Dictionary<string, object>> stack = new();
             Dictionary<string, object> currentBlock = configValues;
             string currentBlockName = null;
 
             foreach (var line in lines)
             {
-                if (typedBlockPattern.IsMatch(line))
+                string trimmed = line.Trim();
+                if (commentPattern.IsMatch(trimmed))
                 {
-                    var match = typedBlockPattern.Match(line);
+                    comments[trimmed] = trimmed;
+                }
+                else if (typedBlockPattern.IsMatch(trimmed))
+                {
+                    var match = typedBlockPattern.Match(trimmed);
                     currentBlockName = match.Groups[2].Value;
                     stack.Push(currentBlock);
                     currentBlock = new Dictionary<string, object>();
                 }
-                else if (blockPattern.IsMatch(line))
+                else if (blockPattern.IsMatch(trimmed))
                 {
-                    var match = blockPattern.Match(line);
+                    var match = blockPattern.Match(trimmed);
                     currentBlockName = match.Groups[1].Value;
                     stack.Push(currentBlock);
                     currentBlock = new Dictionary<string, object>();
                 }
-                else if (line.Trim() == "};")
+                else if (trimmed == "};")
                 {
-                    var parent = stack.Pop();
-                    parent[currentBlockName] = currentBlock;
-                    currentBlock = parent;
+                    if (stack.Count > 0)
+                    {
+                        var parent = stack.Pop();
+                        if (!string.IsNullOrEmpty(currentBlockName))
+                        {
+                            parent[currentBlockName] = currentBlock;
+                        }
+                        currentBlock = parent;
+                    }
                 }
-                else if (arrayPattern.IsMatch(line))
+                else if (arrayPattern.IsMatch(trimmed))
                 {
-                    var match = arrayPattern.Match(line);
+                    var match = arrayPattern.Match(trimmed);
                     string key = match.Groups[1].Value;
                     string[] values = match.Groups[2].Value.Split(", ", StringSplitOptions.RemoveEmptyEntries);
                     currentBlock[key] = values;
                 }
                 else
                 {
-                    var match = entryPattern.Match(line);
+                    var match = entryPattern.Match(trimmed);
                     if (match.Success)
                     {
                         string type = match.Groups[1].Value;
@@ -64,16 +95,29 @@ namespace ConScript
 
         public void Save(string filePath)
         {
-            using StreamWriter writer = new(filePath);
+            using StringWriter writer = new();
             foreach (var entry in configValues)
             {
                 WriteEntry(writer, entry.Key, entry.Value, 0);
             }
+
+            string content = writer.ToString();
+
+            if (encryptionKey != null)
+            {
+                content = Encrypt(content, encryptionKey);
+            }
+
+            File.WriteAllText(filePath, content);
         }
 
-        private void WriteEntry(StreamWriter writer, string key, object value, int indent)
+        private void WriteEntry(StringWriter writer, string key, object value, int indent)
         {
             string indentSpace = new string(' ', indent * 4);
+            if (comments.ContainsKey(key))
+            {
+                writer.WriteLine(indentSpace + "// " + comments[key]);
+            }
             if (value is Dictionary<string, object> block)
             {
                 writer.WriteLine(indentSpace + key + " {");
@@ -83,9 +127,10 @@ namespace ConScript
                 }
                 writer.WriteLine(indentSpace + "};");
             }
-            else if (value is object[] array)
+            else if (value is IEnumerable enumerable && value is not string)
             {
-                writer.WriteLine(indentSpace + key + "[] = [" + string.Join(", ", array) + "]; ");
+                var items = string.Join(", ", enumerable.Cast<object>());
+                writer.WriteLine($"{indentSpace}{key}[] = [{items}];");
             }
             else
             {
@@ -95,51 +140,58 @@ namespace ConScript
             }
         }
 
-        public int GetInt(string key, int defaultValue = 0) => Get(key, defaultValue);
-        public float GetFloat(string key, float defaultValue = 0f) => Get(key, defaultValue);
-        public double GetDouble(string key, double defaultValue = 0.0) => Get(key, defaultValue);
-        public string GetString(string key, string defaultValue = "") => Get(key, defaultValue);
-        public bool GetBool(string key, bool defaultValue = false) => Get(key, defaultValue);
-        public List<T> GetList<T>(string key) => Get<object[]>(key)?.Select(x => (T)Convert.ChangeType(x, typeof(T))).ToList() ?? new List<T>();
-
-        public T Get<T>(string key, T defaultValue = default)
+        private string Encrypt(string plainText, string password)
         {
-            if (configValues.TryGetValue(key, out var value) && value is T typedValue)
-                return typedValue;
-            return defaultValue;
+            using Aes aes = Aes.Create();
+            aes.Key = Encoding.UTF8.GetBytes(password.PadRight(32));
+            aes.IV = new byte[16];
+            using MemoryStream ms = new();
+            using CryptoStream cs = new(ms, aes.CreateEncryptor(), CryptoStreamMode.Write);
+            using StreamWriter sw = new(cs);
+            sw.Write(plainText);
+            return Convert.ToBase64String(ms.ToArray());
         }
 
-        public void Set<T>(string key, T value)
+        private string Decrypt(string encryptedText, string password)
         {
-            configValues[key] = value;
+            try
+            {
+                using Aes aes = Aes.Create();
+                aes.Key = Encoding.UTF8.GetBytes(password.PadRight(32));
+                aes.IV = new byte[16];
+                using MemoryStream ms = new(Convert.FromBase64String(encryptedText));
+                using CryptoStream cs = new(ms, aes.CreateDecryptor(), CryptoStreamMode.Read);
+                using StreamReader sr = new(cs);
+                return sr.ReadToEnd();
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         private object ParseValue(string type, string value)
         {
             return type.ToLower() switch
             {
-                "int" => int.Parse(value),
-                "bool" => bool.Parse(value),
-                "float" => float.Parse(value, System.Globalization.CultureInfo.InvariantCulture),
-                "double" => double.Parse(value, System.Globalization.CultureInfo.InvariantCulture),
+                "int" => int.TryParse(value, out var i) ? i : 0,
+                "bool" => bool.TryParse(value, out var b) && b,
+                "float" => float.TryParse(value, out var f) ? f : 0f,
+                "double" => double.TryParse(value, out var d) ? d : 0.0,
                 "string" => value.Trim('"'),
                 _ => value
             };
         }
 
-        private string GetTypeString(object value)
+        private string GetTypeString(object value) => value switch
         {
-            return value switch
-            {
-                int => "int",
-                bool => "bool",
-                float => "float",
-                double => "double",
-                string => "string",
-                object[] => "array",
-                _ => "unknown"
-            };
-        }
+            int => "int",
+            bool => "bool",
+            float => "float",
+            double => "double",
+            string => "string",
+            object[] => "array",
+            _ => "unknown"
+        };
     }
-
 }
