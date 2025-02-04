@@ -140,6 +140,27 @@ namespace ConScript
             }
         }
 
+        public int GetInt(string key, int defaultValue = 0) => Get(key, defaultValue);
+        public float GetFloat(string key, float defaultValue = 0f) => Get(key, defaultValue);
+        public double GetDouble(string key, double defaultValue = 0.0) => Get(key, defaultValue);
+        public string GetString(string key, string defaultValue = "") => Get(key, defaultValue);
+        public bool GetBool(string key, bool defaultValue = false) => Get(key, defaultValue);
+        public List<T> GetList<T>(string key, List<T> defaultValue = null)
+        {
+            if (configValues.TryGetValue(key, out var value) && value is object[] array)
+            {
+                try
+                {
+                    return array.Select(item => (T)Convert.ChangeType(item, typeof(T))).ToList();
+                }
+                catch
+                {
+                    return defaultValue ?? new List<T>();
+                }
+            }
+            return defaultValue ?? new List<T>();
+        }
+
         public void Set<T>(string key, T value, string comment = null)
         {
             configValues[key] = value;
