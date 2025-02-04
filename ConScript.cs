@@ -140,6 +140,20 @@ namespace ConScript
             }
         }
 
+        public void Set<T>(string key, T value, string comment = null)
+        {
+            configValues[key] = value;
+            if (comment != null)
+                comments[key] = comment;
+        }
+
+        public T Get<T>(string key, T defaultValue = default)
+        {
+            if (configValues.TryGetValue(key, out var value) && value is T typedValue)
+                return typedValue;
+            return defaultValue;
+        }
+
         private string Encrypt(string plainText, string password)
         {
             using Aes aes = Aes.Create();
