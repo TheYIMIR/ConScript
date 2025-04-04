@@ -1,190 +1,298 @@
 # ConScript
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/download)
+<div align="center">
+  
+  ![ConScript Logo](https://via.placeholder.com/200x80?text=ConScript)
+  
+  [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet)](https://dotnet.microsoft.com/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+  [![NuGet Version](https://img.shields.io/badge/NuGet-v1.0.0-blue?style=flat-square&logo=nuget)](https://www.nuget.org/)
+  
+  *A modern, thread-safe configuration management library for .NET applications*
+  
+</div>
 
-ConScript is a robust, thread-safe library for processing configuration files in the `.cosc` format. It provides a comprehensive solution for storing, loading, and manipulating configuration values with support for various data types, nested structures, and powerful features like encryption and validation.
+## 📋 Overview
 
-## 📋 Features
+ConScript is a powerful configuration management library designed for .NET developers who need a robust, secure, and flexible way to handle application settings. With its intuitive API and comprehensive feature set, ConScript simplifies configuration management while providing advanced capabilities like encryption, validation, and hierarchical organization.
 
-- **Type-Safe Configuration**: Support for various data types including `int`, `float`, `double`, `bool`, `string`, `DateTime`, and arrays
-- **Nested Structures**: Easily organize your configurations with hierarchical blocks
-- **Thread Safety**: Built-in thread synchronization for safe concurrent access
-- **Encryption**: AES-256 encryption with PBKDF2 key derivation for secure configuration storage
-- **Validation**: Define validation rules for your configuration values
-- **Path-Based Access**: Access nested values using dot notation (e.g., `player.weapons.mainWeapon`)
-- **Event System**: Get notified when configuration values change
-- **Fluent API**: Elegant, chainable configuration setup
-- **Import/Export**: Support for converting to/from other formats (JSON)
-- **Robust Error Handling**: Detailed operation results for better error diagnosis
+## ✨ Features
 
-## 🚀 Installation
+<table>
+  <tr>
+    <td><b>🔒 Secure</b></td>
+    <td>AES-256 encryption for sensitive configuration with full thread safety</td>
+  </tr>
+  <tr>
+    <td><b>🧩 Flexible</b></td>
+    <td>Hierarchical configuration with nested blocks and dot notation access</td>
+  </tr>
+  <tr>
+    <td><b>✅ Type-safe</b></td>
+    <td>Strongly typed access with automatic conversion between types</td>
+  </tr>
+  <tr>
+    <td><b>🚦 Validated</b></td>
+    <td>Custom validation rules with descriptive error messages</td>
+  </tr>
+  <tr>
+    <td><b>🔄 Reactive</b></td>
+    <td>Event-based notification system for tracking configuration changes</td>
+  </tr>
+  <tr>
+    <td><b>⚡ Performant</b></td>
+    <td>Optimized for speed with compiled regex patterns and concurrent collections</td>
+  </tr>
+  <tr>
+    <td><b>📝 Documented</b></td>
+    <td>Comments support in configuration files with preservation during save</td>
+  </tr>
+  <tr>
+    <td><b>🧪 Extensible</b></td>
+    <td>Pluggable architecture with interfaces for custom implementations</td>
+  </tr>
+</table>
 
-### NuGet (Recommended)
+## 🚀 Getting Started
+
+### Installation
+
+Install ConScript via NuGet Package Manager:
 
 ```bash
 dotnet add package ConScript
 ```
 
-### Manual Installation
+Or via the Package Manager Console:
 
-Add the `ConScript.cs` file to your project and import the namespace:
-
-```csharp
-using ConScript;
+```powershell
+Install-Package ConScript
 ```
 
-## 📖 Usage
-
-### Basic Usage
+### Quick Start
 
 ```csharp
-// Create a new configuration
+// Create a new configuration instance
 var config = new ConScript();
 
-// Load from file
-OperationResult result = config.Load("config.cosc");
+// Load configuration from file
+var result = config.Load("config.cscript");
 if (!result.Success)
 {
     Console.WriteLine($"Error: {result.Message}");
+    return;
 }
 
-// Access values
-int health = config.GetInt("maxHealth");
-string name = config.GetString("playerName");
-bool isActive = config.GetBool("isActive");
-DateTime lastLogin = config.GetDateTime("lastLogin");
+// Access configuration values with type safety
+int maxHealth = config.GetInt("maxHealth");
+string playerName = config.GetString("player.name");
+float moveSpeed = config.GetFloat("player.moveSpeed");
 
-// Access nested values
-int attackPower = config.GetByPath<int>("player.stats.attackPower");
-
-// Set values with fluent API
-config.Set("maxHealth", 100)
+// Modify configuration with fluent API
+config.Set("maxHealth", 200)
       .WithComment("Maximum player health")
       .WithValidation<int>(v => v > 0, "Health must be positive");
 
-// Save to file
-result = config.Save("config.cosc");
+// Save configuration
+config.Save("config.cscript");
 ```
 
-### Advanced Features
+## 📖 Usage Examples
 
-#### Encryption
+### Working with Hierarchical Configuration
+
+ConScript provides intuitive access to nested configuration:
 
 ```csharp
-// Load encrypted file
-config.Load("secure-config.cosc", "mySecretPassword");
+// Access nested values with dot notation
+int strength = config.GetByPath<int>("player.stats.strength");
+float speed = config.GetByPath<float>("player.stats.speed");
 
-// Save with encryption
-config.Save("secure-config.cosc");  // Will use the password provided during load
+// Array access
+List<string> abilities = config.GetList<string>("player.abilities");
 ```
 
-#### Value Changed Events
+### Encrypted Configuration
+
+Protect sensitive configuration data with built-in encryption:
 
 ```csharp
-// Subscribe to changes
-config.ValueChanged += (sender, e) => {
-    Console.WriteLine($"Value changed: {e.Key} from {e.OldValue} to {e.NewValue}");
+// Load encrypted configuration
+var config = new ConScript();
+var result = config.Load("secure-config.cscript", "your-password");
+
+// Make changes
+config.Set("database.connectionString", "Server=myserver;Database=mydb;User Id=username;Password=password;");
+
+// Save with encryption (uses the password from loading)
+config.Save("secure-config.cscript");
+```
+
+### Configuration Change Events
+
+Track changes to configuration values:
+
+```csharp
+// Subscribe to configuration changes
+config.ValueChanged += (sender, args) => {
+    Console.WriteLine($"[CONFIG] Value '{args.Key}' changed:");
+    Console.WriteLine($"  From: {args.OldValue}");
+    Console.WriteLine($"  To:   {args.NewValue}");
+    
+    // Trigger application logic based on changes
+    if (args.Key == "logging.level") {
+        UpdateLoggingLevel(args.NewValue);
+    }
 };
 ```
 
-#### Validation
+## 📜 Configuration File Format
 
-```csharp
-// Set with validation
-config.Set("playerAge", 25)
-      .WithValidation<int>(age => age >= 18, "Player must be an adult");
+ConScript uses a clean, readable format inspired by modern configuration languages:
+
 ```
+// Server configuration
+server {
+    // Network settings with validation
+    network {
+        int port = 8080;
+        string ip = "127.0.0.1";
+        bool enableUpnp = true;
+    };
+    
+    // Performance settings
+    performance {
+        int maxPlayers = 64;
+        float tickRate = 64.0;
+        int[] workerThreads = [2, 4, 8];
+    };
+};
 
-#### Lists and Arrays
-
-```csharp
-// Get list of values
-List<string> inventory = config.GetList<string>("inventory");
-
-// Set list of values
-config.Set("highScores", new[] { 1000, 800, 650, 500 });
-```
-
-## 📝 File Format Example
-
-```cosc
-// Player configuration
-// Last updated: 2025-03-01
-int maxHealth = 100;
-string playerName = "PlayerOne";
-bool isActive = true;
-datetime lastLogin = "2025-04-01T10:30:00";
-
-// Score history
-int[] highScores = [1000, 850, 700, 650];
-
-// Nested player details
+// Player settings
 player {
-    string name = "Hero";
-    float health = 100.0;
+    string name = "DefaultPlayer";
+    float moveSpeed = 5.0;
+    
+    // Player statistics block
     stats {
-        int strength = 15;
-        int agility = 12;
-        int intelligence = 10;
-    };
-    equipment {
-        string weapon = "Excalibur";
-        string armor = "Dragon Plate";
+        int health = 100;
+        int armor = 50;
+        string[] abilities = ["jump", "run", "swim"];
     };
 };
 ```
 
-## 🔄 Conversion
+## 🛠️ Advanced Usage
 
-### JSON Import/Export
+### Custom Encryption
+
+Implement your own encryption service by implementing the `IEncryptionService` interface:
 
 ```csharp
-// Export to JSON
-string json = config.ExportToJson();
+public class CustomEncryptionService : IEncryptionService
+{
+    public string Encrypt(string plainText, string password)
+    {
+        // Your custom encryption logic
+    }
 
-// Import from JSON
-config.ImportFromJson(json);
+    public (OperationResult Result, string DecryptedText) Decrypt(string encryptedText, string password)
+    {
+        // Your custom decryption logic
+    }
+}
+
+// Use your custom encryption service
+var config = new ConScript(new CustomEncryptionService());
 ```
 
-## 🧪 Testing
+### Validation Rules
 
-Run the unit tests with:
+Ensure configuration values meet specific requirements:
 
-```bash
-dotnet test
+```csharp
+// Set server port with validation
+config.Set("server.network.port", 8080)
+      .WithValidation<int>(port => port >= 1024 && port <= 65535, 
+                          "Port must be between 1024 and 65535");
+
+// Set player name with validation
+config.Set("player.name", "Player1")
+      .WithValidation<string>(name => !string.IsNullOrEmpty(name) && name.Length <= 20,
+                             "Player name must be between 1 and 20 characters");
 ```
 
 ## 📊 Performance Considerations
 
-- **Thread Safety**: ConScript is designed for concurrent access but heavy parallel writes might affect performance
-- **Encryption**: Enabling encryption adds processing overhead, use it only when security is required
-- **File Size**: Very large configuration files might impact load/save times
+ConScript is designed with performance in mind:
 
-## 📘 API Reference
+- Uses `ConcurrentDictionary` for thread-safe operations
+- Implements reader-writer locks for optimized concurrent access
+- Pre-compiles regex patterns for faster parsing
+- Employs lazy value conversion to minimize unnecessary processing
 
-### Main Classes
+## 📋 API Reference
 
-- `ConScript`: The main configuration class
-- `OperationResult`: Contains the result of operations
-- `ConfigValueChangedEventArgs`: Event arguments for value changes
+### Core Classes
 
-### Interfaces
+| Class | Description |
+|-------|-------------|
+| `ConScript` | Main configuration class that implements `IConfigurationProvider` |
+| `ConfigurationBuilder` | Fluent API for configuration operations |
+| `OperationResult` | Result pattern for operations that may succeed or fail |
 
-- `IConfigurationProvider`: Core configuration capabilities
-- `IConfigurationBuilder`: Fluent API for configuration
-- `IEncryptionService`: Encryption service interface
+### Key Interfaces
 
-## ⚖️ License
+| Interface | Description |
+|-----------|-------------|
+| `IConfigurationProvider` | Core configuration operations |
+| `IConfigurationBuilder` | Fluent API for building configurations |
+| `IEncryptionService` | Interface for custom encryption implementations |
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 📄 License
 
-## 👥 Contributing
+ConScript is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+```
+MIT License
+
+Copyright (c) 2025 TheYIMIR
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Here's how you can contribute:
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+Please make sure to update tests as appropriate and adhere to the existing coding style.
+
+## ✨ Acknowledgements
+
+- Developed by TheYIMIR
+- Built with .NET 8.0
+- Inspired by modern configuration systems
+
+---
+
+<div align="center">
+  
+  Made with ❤️ by [TheYIMIR](https://github.com/TheYIMIR)
+  
+  Copyright © 2025
+  
+</div>
