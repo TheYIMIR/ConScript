@@ -76,7 +76,7 @@ Install-Package ConScript
 var config = new ConScript();
 
 // Load configuration from file
-var result = config.Load("config.cscript");
+var result = config.Load("config.cosc");
 if (!result.Success)
 {
     Console.WriteLine($"Error: {result.Message}");
@@ -94,7 +94,7 @@ config.Set("maxHealth", 200)
       .WithValidation<int>(v => v > 0, "Health must be positive");
 
 // Save configuration
-config.Save("config.cscript");
+config.Save("config.cosc");
 ```
 
 ## 📖 Usage Examples
@@ -119,13 +119,13 @@ Protect sensitive configuration data with built-in encryption:
 ```csharp
 // Load encrypted configuration
 var config = new ConScript();
-var result = config.Load("secure-config.cscript", "your-password");
+var result = config.Load("secure-config.cosc", "your-password");
 
 // Make changes
 config.Set("database.connectionString", "Server=myserver;Database=mydb;User Id=username;Password=password;");
 
 // Save with encryption (uses the password from loading)
-config.Save("secure-config.cscript");
+config.Save("secure-config.cosc");
 ```
 
 ### Configuration Change Events
